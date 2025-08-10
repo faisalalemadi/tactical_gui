@@ -321,6 +321,8 @@ if st.button("Generate Recommendation", type="primary"):
         st.stop()
 
     st.markdown("### 🗺️ Location Map")
+        # build the dataframe the layer will use
+    target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon)}])
     deck = pdk.Deck(
         map_style="mapbox://styles/mapbox/satellite-v9",
         mapbox_key=MAPBOX_TOKEN,   # <-- pass token here
@@ -378,6 +380,7 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
 
 
