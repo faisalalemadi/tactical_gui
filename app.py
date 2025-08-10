@@ -312,12 +312,13 @@ with st.sidebar:
     map_style = st.selectbox(
         "Map style",
         [
-            
-            "mapbox://styles/mapbox/satellite-streets-v12",
-            "mapbox://styles/mapbox/outdoors-v12",
-
+            "mapbox://styles/mapbox/satellite-v9",   # ✅ solid choice
+            "mapbox://styles/mapbox/streets-v11",
+            "mapbox://styles/mapbox/outdoors-v11",
+            "mapbox://styles/mapbox/dark-v11",
+            "mapbox://styles/mapbox/light-v11",
         ],
-        index=0
+        index=0,  # default to satellite-v9
     )
 
 # === Streamlit UI ===
@@ -379,4 +380,5 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
