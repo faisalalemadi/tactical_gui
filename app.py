@@ -308,45 +308,19 @@ if st.button("Generate Recommendation", type="primary"):
   
     # Target point
     target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon), "tooltip": "Target"}])
-    
-    # 3D terrain with Esri World Imagery draped on it
-    terrain = pdk.Layer(
-        "TerrainLayer",
-        elevation_data="https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
-        texture="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        elevation_decoder={"r": 256, "g": 1, "b": 1/256, "offset": -32768},
-        bounds=[-180, -85.0511, 180, 85.0511],
-        max_zoom=14,
-    )
-    
-    # Red marker
-    marker = pdk.Layer(
-        "ScatterplotLayer",
-        data=target_df,
-        get_position='[lon, lat]',
-        get_radius=120,
-        get_fill_color='[255, 0, 0, 220]',
-        pickable=True,
-    )
-    
-    # Camera — tilt for relief
-    view = pdk.ViewState(
-        latitude=float(lat),
-        longitude=float(lon),
-        zoom=13,            # try 12–15
-        pitch=55,
-        bearing=25,
-    )
-    
+     pdk.settings.mapbox_api_key = None  # disable Mapbox completely
     deck = pdk.Deck(
-        layers=[terrain, marker],
-        initial_view_state=view,
-        map_style=None,     # IMPORTANT: no basemap so the texture shows
-        tooltip={"text": "{tooltip}"},
+        map_style=None,
+        initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=13, pitch=45),
+        layers=[
+            pdk.Layer("TileLayer",
+                      data="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                      min_zoom=0, max_zoom=19, tile_size=256),
+            pdk.Layer("ScatterplotLayer", data=target_df, get_position='[lon, lat]', get_radius=120,
+                      get_fill_color='[255,0,0,200]', pickable=True),
+        ],
     )
-    
-    st.pydeck_chart(deck, use_container_width=True, height=650)
-
+    st.pydeck_chart(deck, use_container_width=True, height=700)
 
     # --- Land cover ---
     st.markdown("### 🖼️ Land Cover Region")
@@ -388,6 +362,7 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
 
 
