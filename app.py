@@ -303,11 +303,21 @@ if st.button("Generate Recommendation", type="primary"):
         st.stop()
 
         # --- Map ---
-    st.markdown("### 🗺️ Location Map")
+    st.markdown("### 🗺️ Location Map (Sentinel-2)")
     
-    # build marker data
+    # marker
     target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon), "tooltip": "Target Location"}])
     
+    # Sentinel-2 cloudless tiles (no key needed)
+    s2_layer = pdk.Layer(
+        "TileLayer",
+        data="https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg",
+        min_zoom=0,
+        max_zoom=16,
+        tile_size=256,
+    )
+    
+    # marker layer
     scatter = pdk.Layer(
         "ScatterplotLayer",
         data=target_df,
@@ -317,24 +327,19 @@ if st.button("Generate Recommendation", type="primary"):
         pickable=True,
     )
     
-    # Esri World Imagery basemap (no token)
-    esri_sat = pdk.Layer(
-        "TileLayer",
-        data="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        min_zoom=0, max_zoom=19, tile_size=256,
-    )
-    
     view = pdk.ViewState(latitude=float(lat), longitude=float(lon), zoom=12, pitch=45)
     
-    deck = pdk.Deck(
-        layers=[esri_sat, scatter],
-        initial_view_state=view,
-        map_style=None,  # turn off Mapbox basemap entirely
-        tooltip={"text": "{tooltip}"},
+    st.pydeck_chart(
+        pdk.Deck(
+            layers=[s2_layer, scatter],
+            initial_view_state=view,
+            map_style=None,           # important: disables Mapbox
+            tooltip={"text": "{tooltip}"}
+        ),
+        use_container_width=True,
+        height=600,
     )
-    
-    st.pydeck_chart(deck, use_container_width=True, height=600)
-    st.caption("Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community.")
+    st.caption("Basemap: Sentinel-2 cloudless (EOX), © ESA; © EOX IT Services GmbH.")
 
     # --- Land cover ---
     st.markdown("### 🖼️ Land Cover Region")
@@ -376,6 +381,7 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
 
 
