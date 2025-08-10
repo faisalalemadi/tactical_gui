@@ -55,6 +55,34 @@ ESA_COLORS = {
 }
 ESA_KEYS = sorted(ESA_COLORS.keys())
 
+
+lat, lon = 31.0400, 34.8500
+MAPTILER_KEY = st.secrets.get("MAPTILER_KEY")
+
+layers = [
+    # Satellite + labels from MapTiler (needs key)
+    pdk.Layer(
+        "TileLayer",
+        data=f"https://api.maptiler.com/maps/hybrid/{{z}}/{{x}}/{{y}}.jpg?key={MAPTILER_KEY}",
+        min_zoom=0, max_zoom=22, tile_size=512, opacity=1.0,
+    ),
+    pdk.Layer(
+        "ScatterplotLayer",
+        data=[{"lat": lat, "lon": lon}],
+        get_position='[lon, lat]',
+        get_radius=120,
+        get_fill_color='[255,0,0,200]',
+        pickable=True,
+    ),
+]
+
+st.pydeck_chart(pdk.Deck(
+    map_style=None,                     # important: no Mapbox basemap
+    initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=13, pitch=45),
+    layers=layers,
+), use_container_width=True, height=720)
+
+
 # Qatar-specific constraints
 QATAR_BOMBING_TYPES = [
     "Precision Bombing",
@@ -362,6 +390,7 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
 
 
