@@ -25,7 +25,7 @@ if "runs" not in st.session_state:
 DEFAULT_MODEL = "gpt-4o"
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# We will NOT rely on Mapbox for the basemap
+# Disable Mapbox entirely for pydeck 0.8.x
 pdk.settings.mapbox_api_key = None
 
 # Windows quirk
@@ -264,11 +264,9 @@ if st.button("Generate Recommendation", type="primary"):
     try:
         features = extract_features(lat, lon)
     except FileNotFoundError as e:
-        st.error(str(e))
-        st.stop()
+        st.error(str(e)); st.stop()
     except Exception as e:
-        st.error(f"Feature extraction failed: {e}")
-        st.stop()
+        st.error(f"Feature extraction failed: {e}"); st.stop()
 
     # --- Map ---
     st.markdown(f"### 🗺️ Location Map ({basemap})")
@@ -282,7 +280,7 @@ if st.button("Generate Recommendation", type="primary"):
         max_zoom=19,
         tile_size=256,
         opacity=1.0,
-        load_options={"image": {"crossOrigin": "anonymous"}},  # critical for CORS
+        load_options={"image": {"crossOrigin": "anonymous"}},
     )
 
     marker = pdk.Layer(
@@ -295,12 +293,10 @@ if st.button("Generate Recommendation", type="primary"):
     )
 
     deck = pdk.Deck(
-        map_style=None,            # no Mapbox style
-        map_provider=None,         # <- IMPORTANT: disable Mapbox completely
+        map_style=None,   # IMPORTANT for pydeck 0.8: no Mapbox basemap
         initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=13, pitch=45),
         layers=[tiles, marker],
         tooltip={"text": "{tooltip}"},
-        controller=True,
     )
 
     st.pydeck_chart(deck, use_container_width=True, height=700)
@@ -320,8 +316,7 @@ if st.button("Generate Recommendation", type="primary"):
         gpt_response = generate_qatar_response(features, tactical_description)
         st.json(gpt_response)
     except RuntimeError as e:
-        st.error(str(e))
-        st.stop()
+        st.error(str(e)); st.stop()
 
     # --- Export session history ---
     record = {
