@@ -23,17 +23,16 @@ if "runs" not in st.session_state:
     st.session_state["runs"] = []
 
 # ===== Model Config =====
-DEFAULT_MODEL = "gpt-4o"  # change to gpt-4o, gpt-5, or gpt-5-reasoning as needed
+DEFAULT_MODEL = "gpt-4o"
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# Mapbox token for pydeck (must be a public 'pk.' token)
+# Mapbox token (not used for the Esri basemap, but kept for future styles)
 MAPBOX_TOKEN = st.secrets.get("MAPBOX_TOKEN") or os.getenv("MAPBOX_TOKEN")
 if MAPBOX_TOKEN:
     pdk.settings.mapbox_api_key = MAPBOX_TOKEN
 else:
-    st.warning("Mapbox token missing. Add MAPBOX_TOKEN in Streamlit → Settings → Secrets for the basemap to render.")
+    st.info("Using Esri World Imagery (no Mapbox key required).")
 
-    
 # Allow duplicate OpenMP DLL (Windows quirk)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
@@ -55,42 +54,15 @@ ESA_COLORS = {
 }
 ESA_KEYS = sorted(ESA_COLORS.keys())
 
-
 # Qatar-specific constraints
 QATAR_BOMBING_TYPES = [
-    "Precision Bombing",
-    "Stand-off Strike",
-    "Close Air Support (CAS)",
-    "Interdiction",
-    "Anti-Armor Strike",
-    "SEAD/DEAD",
-    "Maritime Strike",
+    "Precision Bombing", "Stand-off Strike", "Close Air Support (CAS)",
+    "Interdiction", "Anti-Armor Strike", "SEAD/DEAD", "Maritime Strike",
 ]
-
-QATAR_AIR_PLATFORMS = [
-    "F-15QA",
-    "Dassault Rafale",
-    "Eurofighter Typhoon",
-    "AH-64E Apache",
-    "Bayraktar TB2",
-]
-
-QATAR_GROUND_PLATFORMS = [
-    "M142 HIMARS",
-    "PzH 2000",
-]
-
-QATAR_AIR_MUNITIONS = [
-    "AASM Hammer", "SCALP-EG", "Paveway IV", "Brimstone 2",
-    "JDAM", "SDB", "AGM-114R Hellfire", "APKWS", "MAM-L"
-]
-
-QATAR_GROUND_MUNITIONS = [
-    "GMLRS",
-    "ATACMS",
-    "155mm ERFB-BB",
-    "155mm HE"
-]
+QATAR_AIR_PLATFORMS = ["F-15QA", "Dassault Rafale", "Eurofighter Typhoon", "AH-64E Apache", "Bayraktar TB2"]
+QATAR_GROUND_PLATFORMS = ["M142 HIMARS", "PzH 2000"]
+QATAR_AIR_MUNITIONS = ["AASM Hammer", "SCALP-EG", "Paveway IV", "Brimstone 2", "JDAM", "SDB", "AGM-114R Hellfire", "APKWS", "MAM-L"]
+QATAR_GROUND_MUNITIONS = ["GMLRS", "ATACMS", "155mm ERFB-BB", "155mm HE"]
 
 @st.cache_resource
 def load_vectorstore():
@@ -263,7 +235,7 @@ def generate_qatar_response(features, tactical_description, model_name=DEFAULT_M
             data = json.loads(resp.choices[0].message.content)
         else:
             system_msg_fallback = system_msg + "\nRespond ONLY with pure JSON."
-            resp = client.chat.completions.create(
+            resp = client.chat_completions.create(
                 model=model_name,
                 messages=[{"role": "system", "content": system_msg_fallback},
                           {"role": "user", "content": user_msg}],
@@ -303,23 +275,35 @@ if st.button("Generate Recommendation", type="primary"):
         st.error(f"Feature extraction failed: {e}")
         st.stop()
 
-        # --- Map ---
-    st.markdown("### 🗺️ Location Map (Sentinel-2)")
-        
-  
-    # Target point
+    # --- Map ---
+    st.markdown("### 🗺️ Location Map (Esri World Imagery)")
     target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon), "tooltip": "Target"}])
-    pdk.settings.mapbox_api_key = None  # disable Mapbox completely
+
+    # Disable Mapbox; use Esri public imagery (no auth) + crossOrigin
+    pdk.settings.mapbox_api_key = None
+    imagery = pdk.Layer(
+        "TileLayer",
+        data="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        min_zoom=0,
+        max_zoom=19,
+        tile_size=256,
+        opacity=1.0,
+        load_options={"image": {"crossOrigin": "anonymous"}},
+    )
+    marker = pdk.Layer(
+        "ScatterplotLayer",
+        data=target_df,
+        get_position='[lon, lat]',
+        get_radius=140,
+        get_fill_color='[255,0,0,220]',
+        pickable=True,
+    )
+
     deck = pdk.Deck(
         map_style=None,
         initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=13, pitch=45),
-        layers=[
-            pdk.Layer("TileLayer",
-                      data="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-                      min_zoom=0, max_zoom=19, tile_size=256),
-            pdk.Layer("ScatterplotLayer", data=target_df, get_position='[lon, lat]', get_radius=120,
-                      get_fill_color='[255,0,0,200]', pickable=True),
-        ],
+        layers=[imagery, marker],
+        tooltip={"text": "{tooltip}"},
     )
     st.pydeck_chart(deck, use_container_width=True, height=700)
 
@@ -344,11 +328,7 @@ if st.button("Generate Recommendation", type="primary"):
     # --- Export session history ---
     record = {
         "time": datetime.now().isoformat(timespec="seconds"),
-        "inputs": {
-            "lat": float(lat),
-            "lon": float(lon),
-            "tactical_description": tactical_description.strip(),
-        },
+        "inputs": {"lat": float(lat), "lon": float(lon), "tactical_description": tactical_description.strip()},
         "features": features,
         "recommendation": gpt_response,
     }
@@ -363,19 +343,3 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
