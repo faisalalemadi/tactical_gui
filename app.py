@@ -305,37 +305,22 @@ if st.button("Generate Recommendation", type="primary"):
         # --- Map ---
     st.markdown("### 🗺️ Location Map (Sentinel-2)")
         
+  =
     
-    # Your point
-    target_df = pd.DataFrame([{
-        "lat": float(lat),
-        "lon": float(lon),
-        "tooltip": "Target"
-    }])
+    # Target point
+    target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon), "tooltip": "Target"}])
     
-    # 3D terrain with Sentinel-2 texture (no keys needed)
+    # 3D terrain with Esri World Imagery draped on it
     terrain = pdk.Layer(
         "TerrainLayer",
-        elevation_data="https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",  # public Terrarium DEM
-        texture="https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg",  # Sentinel-2 cloudless
-        elevation_decoder={"r": 256, "g": 1, "b": 1/256, "offset": -32768},  # Terrarium decode
+        elevation_data="https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+        texture="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        elevation_decoder={"r": 256, "g": 1, "b": 1/256, "offset": -32768},
         bounds=[-180, -85.0511, 180, 85.0511],
         max_zoom=14,
     )
     
-    # Optional transparent overlays for roads + labels (tokenless)
-    roads = pdk.Layer(
-        "TileLayer",
-        data="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
-        min_zoom=0, max_zoom=19, tile_size=256, opacity=0.9,
-    )
-    labels = pdk.Layer(
-        "TileLayer",
-        data="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-        min_zoom=0, max_zoom=19, tile_size=256, opacity=0.9,
-    )
-    
-    # Your red marker
+    # Red marker
     marker = pdk.Layer(
         "ScatterplotLayer",
         data=target_df,
@@ -345,23 +330,24 @@ if st.button("Generate Recommendation", type="primary"):
         pickable=True,
     )
     
-    # Camera – tilt + slight bearing for the 3D vibe
+    # Camera — tilt for relief
     view = pdk.ViewState(
         latitude=float(lat),
         longitude=float(lon),
-        zoom=13,
+        zoom=13,            # try 12–15
         pitch=55,
         bearing=25,
     )
     
     deck = pdk.Deck(
-        layers=[terrain, roads, labels, marker],
+        layers=[terrain, marker],
         initial_view_state=view,
-        map_style=None,            # IMPORTANT: turn off Mapbox basemap
+        map_style=None,     # IMPORTANT: no basemap so the texture shows
         tooltip={"text": "{tooltip}"},
     )
     
     st.pydeck_chart(deck, use_container_width=True, height=650)
+
 
     # --- Land cover ---
     st.markdown("### 🖼️ Land Cover Region")
@@ -403,6 +389,7 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
 
 
