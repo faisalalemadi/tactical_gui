@@ -36,24 +36,6 @@ else:
     
 # Allow duplicate OpenMP DLL (Windows quirk)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-st.subheader("🧪 Basemap without Mapbox (Esri)")
-osm_df = pd.DataFrame([{"lat": 25.285447, "lon": 51.531040}])
-
-esri_raster = pdk.Layer(
-    "TileLayer",
-    data="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    min_zoom=0,
-    max_zoom=19,
-    tile_size=256,
-)
-dot = pdk.Layer("ScatterplotLayer", data=osm_df, get_position='[lon, lat]', get_radius=120, get_fill_color='[0, 200, 255, 200]')
-
-st.pydeck_chart(
-    pdk.Deck(layers=[esri_raster, dot],
-             initial_view_state=pdk.ViewState(latitude=25.285447, longitude=51.531040, zoom=12, pitch=45)),
-    use_container_width=True, height=400
-)
-
 
 # === Constants ===
 DEM_FOLDER = "./dem_tiles"
@@ -320,31 +302,39 @@ if st.button("Generate Recommendation", type="primary"):
         st.error(f"Feature extraction failed: {e}")
         st.stop()
 
-    # --- Map ---
-# --- Map ---
+        # --- Map ---
     st.markdown("### 🗺️ Location Map")
-    target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon)}])
+    
+    # build marker data
+    target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon), "tooltip": "Target Location"}])
+    
+    scatter = pdk.Layer(
+        "ScatterplotLayer",
+        data=target_df,
+        get_position='[lon, lat]',
+        get_radius=100,
+        get_fill_color='[255, 0, 0, 160]',
+        pickable=True,
+    )
+    
+    # Esri World Imagery basemap (no token)
+    esri_sat = pdk.Layer(
+        "TileLayer",
+        data="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        min_zoom=0, max_zoom=19, tile_size=256,
+    )
+    
+    view = pdk.ViewState(latitude=float(lat), longitude=float(lon), zoom=12, pitch=45)
     
     deck = pdk.Deck(
-        map_provider="mapbox",                 # <— important on some pydeck versions
-        map_style="mapbox://styles/mapbox/satellite-v9",
-        initial_view_state=pdk.ViewState(
-            latitude=float(lat), longitude=float(lon), zoom=12, pitch=45
-        ),
-        layers=[
-            pdk.Layer(
-                "ScatterplotLayer",
-                data=target_df,
-                get_position='[lon, lat]',
-                get_radius=100,
-                get_fill_color='[255, 0, 0, 160]',
-                pickable=True,
-            )
-        ],
-        tooltip={"text": "Target Location"},
+        layers=[esri_sat, scatter],
+        initial_view_state=view,
+        map_style=None,  # turn off Mapbox basemap entirely
+        tooltip={"text": "{tooltip}"},
     )
-    st.pydeck_chart(deck, height=600, use_container_width=True)
-
+    
+    st.pydeck_chart(deck, use_container_width=True, height=600)
+    st.caption("Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community.")
 
     # --- Land cover ---
     st.markdown("### 🖼️ Land Cover Region")
@@ -386,6 +376,7 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
 
 
