@@ -31,6 +31,10 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 MAPBOX_TOKEN = st.secrets.get("MAPBOX_TOKEN") or os.getenv("MAPBOX_TOKEN")
 if MAPBOX_TOKEN:
     pdk.settings.mapbox_api_key = MAPBOX_TOKEN
+    # show short masked token to confirm without leaking it
+    st.sidebar.info(f"Mapbox token loaded ✅ ({MAPBOX_TOKEN[:5]}…{MAPBOX_TOKEN[-4:]})")
+else:
+    st.sidebar.error("Mapbox token missing ❌  (add MAPBOX_TOKEN in Streamlit → Settings → Secrets)")
 
 # Allow duplicate OpenMP DLL (Windows quirk)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -375,3 +379,4 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
