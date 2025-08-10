@@ -305,8 +305,7 @@ if st.button("Generate Recommendation", type="primary"):
         # --- Map ---
     st.markdown("### 🗺️ Location Map (Sentinel-2)")
         
-  =
-    
+  
     # Target point
     target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon), "tooltip": "Target"}])
     
@@ -389,6 +388,7 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
 
 
