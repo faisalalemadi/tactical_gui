@@ -308,7 +308,7 @@ if st.button("Generate Recommendation", type="primary"):
   
     # Target point
     target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon), "tooltip": "Target"}])
-     pdk.settings.mapbox_api_key = None  # disable Mapbox completely
+    pdk.settings.mapbox_api_key = None  # disable Mapbox completely
     deck = pdk.Deck(
         map_style=None,
         initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=13, pitch=45),
@@ -362,6 +362,7 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
 
 
