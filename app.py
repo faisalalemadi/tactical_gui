@@ -307,7 +307,7 @@ lon = st.number_input("Longitude", format="%f", value=34.850000)
 tactical_description = st.text_area("Mission / Tactical Description", placeholder="e.g. Radar near civilian area")
 
 # ---------- Sidebar: map-style picker ----------
-map_style = "mapbox://styles/mapbox/satellite-v9"
+map_style = "mapbox://styles/mapbox/satellite-streets-v12"
 
 # === Streamlit UI ===
 if st.button("Generate Recommendation", type="primary"):
@@ -368,6 +368,7 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
 
 
