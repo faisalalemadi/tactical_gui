@@ -14,11 +14,10 @@ from openai import OpenAI
 from datetime import datetime
 import json
 
-# ---------- UI: wide layout + header ----------
+# ---------- UI ----------
 st.set_page_config(page_title="🧠 Tactical Reasoning Assistant", page_icon="🛰️", layout="wide")
 st.title("🧠 Tactical Reasoning Assistant (Qatar Armed Forces)")
 
-# Session history for exports
 if "runs" not in st.session_state:
     st.session_state["runs"] = []
 
@@ -26,14 +25,10 @@ if "runs" not in st.session_state:
 DEFAULT_MODEL = "gpt-4o"
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# Mapbox token (not used for the Esri basemap, but kept for future styles)
-MAPBOX_TOKEN = st.secrets.get("MAPBOX_TOKEN") or os.getenv("MAPBOX_TOKEN")
-if MAPBOX_TOKEN:
-    pdk.settings.mapbox_api_key = MAPBOX_TOKEN
-else:
-    st.info("Using Esri World Imagery (no Mapbox key required).")
+# We will NOT rely on Mapbox for the basemap
+pdk.settings.mapbox_api_key = None
 
-# Allow duplicate OpenMP DLL (Windows quirk)
+# Windows quirk
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 # === Constants ===
@@ -54,7 +49,6 @@ ESA_COLORS = {
 }
 ESA_KEYS = sorted(ESA_COLORS.keys())
 
-# Qatar-specific constraints
 QATAR_BOMBING_TYPES = [
     "Precision Bombing", "Stand-off Strike", "Close Air Support (CAS)",
     "Interdiction", "Anti-Armor Strike", "SEAD/DEAD", "Maritime Strike",
@@ -74,7 +68,7 @@ def load_vectorstore():
 
 vectorstore = load_vectorstore()
 
-# === Utility: Get tile path by lat/lon ===
+# === Utility: tile paths ===
 def get_tile_path(folder, lat, lon, extension):
     lat_prefix = 'N' if lat >= 0 else 'S'
     lon_prefix = 'E' if lon >= 0 else 'W'
@@ -224,24 +218,14 @@ def generate_qatar_response(features, tactical_description, model_name=DEFAULT_M
     user_msg = f"Doctrine:\n{context}\n\nTerrain:\n{features}\n\nTactical Description:\n{tactical_description}"
 
     try:
-        if model_name in ["gpt-4o", "gpt-4o-mini", "gpt-5", "gpt-5-reasoning"]:
-            resp = client.chat.completions.create(
-                model=model_name,
-                messages=[{"role": "system", "content": system_msg},
-                          {"role": "user", "content": user_msg}],
-                temperature=0,
-                response_format={"type": "json_object"}
-            )
-            data = json.loads(resp.choices[0].message.content)
-        else:
-            system_msg_fallback = system_msg + "\nRespond ONLY with pure JSON."
-            resp = client.chat_completions.create(
-                model=model_name,
-                messages=[{"role": "system", "content": system_msg_fallback},
-                          {"role": "user", "content": user_msg}],
-                temperature=0
-            )
-            data = json.loads(resp.choices[0].message.content)
+        resp = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "system", "content": system_msg},
+                      {"role": "user", "content": user_msg}],
+            temperature=0,
+            response_format={"type": "json_object"}
+        )
+        data = json.loads(resp.choices[0].message.content)
     except Exception as e:
         raise RuntimeError(f"Model response error: {e}")
 
@@ -264,7 +248,18 @@ lat = st.number_input("Latitude", format="%f", value=31.040000)
 lon = st.number_input("Longitude", format="%f", value=34.850000)
 tactical_description = st.text_area("Mission / Tactical Description", placeholder="e.g. Radar near civilian area")
 
-# === Streamlit UI ===
+basemap = st.selectbox(
+    "Basemap (no keys required)",
+    ["Esri World Imagery", "OpenStreetMap"],
+    index=0
+)
+
+TILE_URLS = {
+    "Esri World Imagery": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    "OpenStreetMap": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+}
+
+# === UI ===
 if st.button("Generate Recommendation", type="primary"):
     try:
         features = extract_features(lat, lon)
@@ -276,20 +271,20 @@ if st.button("Generate Recommendation", type="primary"):
         st.stop()
 
     # --- Map ---
-    st.markdown("### 🗺️ Location Map (Esri World Imagery)")
+    st.markdown(f"### 🗺️ Location Map ({basemap})")
+
     target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon), "tooltip": "Target"}])
 
-    # Disable Mapbox; use Esri public imagery (no auth) + crossOrigin
-    pdk.settings.mapbox_api_key = None
-    imagery = pdk.Layer(
+    tiles = pdk.Layer(
         "TileLayer",
-        data="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        data=TILE_URLS[basemap],
         min_zoom=0,
         max_zoom=19,
         tile_size=256,
         opacity=1.0,
-        load_options={"image": {"crossOrigin": "anonymous"}},
+        load_options={"image": {"crossOrigin": "anonymous"}},  # critical for CORS
     )
+
     marker = pdk.Layer(
         "ScatterplotLayer",
         data=target_df,
@@ -300,11 +295,14 @@ if st.button("Generate Recommendation", type="primary"):
     )
 
     deck = pdk.Deck(
-        map_style=None,
+        map_style=None,            # no Mapbox style
+        map_provider=None,         # <- IMPORTANT: disable Mapbox completely
         initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=13, pitch=45),
-        layers=[imagery, marker],
+        layers=[tiles, marker],
         tooltip={"text": "{tooltip}"},
+        controller=True,
     )
+
     st.pydeck_chart(deck, use_container_width=True, height=700)
 
     # --- Land cover ---
