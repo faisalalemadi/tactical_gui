@@ -302,12 +302,13 @@ if st.button("Generate Recommendation", type="primary"):
         st.stop()
 
     # --- Map ---
+# --- Map ---
     st.markdown("### 🗺️ Location Map")
     target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon)}])
-
+    
     deck = pdk.Deck(
-        map_style="mapbox://styles/mapbox/satellite-v9",   # fixed style
-                            
+        map_provider="mapbox",                 # <— important on some pydeck versions
+        map_style="mapbox://styles/mapbox/satellite-v9",
         initial_view_state=pdk.ViewState(
             latitude=float(lat), longitude=float(lon), zoom=12, pitch=45
         ),
@@ -318,12 +319,13 @@ if st.button("Generate Recommendation", type="primary"):
                 get_position='[lon, lat]',
                 get_radius=100,
                 get_fill_color='[255, 0, 0, 160]',
-                pickable=True
+                pickable=True,
             )
         ],
         tooltip={"text": "Target Location"},
     )
     st.pydeck_chart(deck, height=600, use_container_width=True)
+
 
     # --- Land cover ---
     st.markdown("### 🖼️ Land Cover Region")
@@ -365,4 +367,5 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
