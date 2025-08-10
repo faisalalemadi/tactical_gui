@@ -56,7 +56,7 @@ ESA_COLORS = {
 ESA_KEYS = sorted(ESA_COLORS.keys())
 
 
-lat, lon = 31.0400, 34.8500
+lat, lon = 25.0400, 51.8500
 MAPTILER_KEY = st.secrets.get("MAPTILER_KEY")
 
 layers = [
@@ -390,6 +390,7 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
 
 
