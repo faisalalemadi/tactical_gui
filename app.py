@@ -269,37 +269,56 @@ if st.button("Generate Recommendation", type="primary"):
         st.error(f"Feature extraction failed: {e}"); st.stop()
 
     # --- Map ---
-    st.markdown(f"### 🗺️ Location Map ({basemap})")
-
+    # --- Map (no Mapbox, pydeck 0.8.0 safe) ---
+    st.markdown("### 🗺️ Location Map")
+    
+    # 1) Prefer MapTiler Satellite if key is present (very reliable on Streamlit Cloud)
+    MAPTILER_KEY = st.secrets.get("MAPTILER_KEY")
+    if MAPTILER_KEY:
+        tile_url = f"https://api.maptiler.com/tiles/satellite/{'{z}'}/{'{x}'}/{'{y}'}.jpg?key={MAPTILER_KEY}"
+        st.info(f"Using MapTiler Satellite • key …{MAPTILER_KEY[-4:]}")
+    else:
+        # 2) Fallback to Esri World Imagery (works in many regions, but some networks block it)
+        tile_url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        st.warning("MAPTILER_KEY missing in secrets — falling back to Esri World Imagery")
+    
+    # Make sure Mapbox is disabled for pydeck 0.8
+    pdk.settings.mapbox_api_key = None
+    
+    # Target point
     target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon), "tooltip": "Target"}])
-
+    
     tiles = pdk.Layer(
         "TileLayer",
-        data=TILE_URLS[basemap],
+        data=tile_url,
         min_zoom=0,
         max_zoom=19,
         tile_size=256,
         opacity=1.0,
-        load_options={"image": {"crossOrigin": "anonymous"}},
+        load_options={"image": {"crossOrigin": "anonymous"}},  # important for CORS
     )
-
+    
     marker = pdk.Layer(
         "ScatterplotLayer",
         data=target_df,
         get_position='[lon, lat]',
         get_radius=140,
-        get_fill_color='[255,0,0,220]',
+        get_fill_color='[255, 0, 0, 220]',
         pickable=True,
     )
-
+    
     deck = pdk.Deck(
-        map_style=None,   # IMPORTANT for pydeck 0.8: no Mapbox basemap
-        initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=13, pitch=45),
+        map_style=None,  # critical: no Mapbox basemap
+        initial_view_state=pdk.ViewState(latitude=float(lat), longitude=float(lon), zoom=13, pitch=45),
         layers=[tiles, marker],
         tooltip={"text": "{tooltip}"},
     )
-
+    
+    # helpful debug: show pydeck version and the URL you're hitting
+    st.caption(f"pydeck {pdk.__version__} • tiles: {tile_url.split('?')[0]}")
+    
     st.pydeck_chart(deck, use_container_width=True, height=700)
+
 
     # --- Land cover ---
     st.markdown("### 🖼️ Land Cover Region")
@@ -336,3 +355,4 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
