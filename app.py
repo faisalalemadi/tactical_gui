@@ -321,15 +321,25 @@ if st.button("Generate Recommendation", type="primary"):
         st.stop()
 
     st.markdown("### 🗺️ Location Map")
-    target_df = pd.DataFrame([{"lat": lat, "lon": lon}])
-    st.pydeck_chart(pdk.Deck(
-        map_style=map_style,  # use sidebar choice
+    deck = pdk.Deck(
+        map_style="mapbox://styles/mapbox/satellite-v9",
+        mapbox_key=MAPBOX_TOKEN,   # <-- pass token here
         initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=12, pitch=45),
-        layers=[pdk.Layer("ScatterplotLayer", data=target_df,
-                          get_position='[lon, lat]', get_radius=100,
-                          get_fill_color='[255, 0, 0, 160]', pickable=True)],
-        tooltip={"text": "Target Location"}
-    ))
+        layers=[
+            pdk.Layer(
+                "ScatterplotLayer",
+                data=target_df,
+                get_position='[lon, lat]',
+                get_radius=100,
+                get_fill_color='[255, 0, 0, 160]',
+                pickable=True
+            )
+        ],
+        tooltip={"text": "Target Location"},
+    )
+    
+    st.pydeck_chart(deck, height=600, use_container_width=True)
+    
 
     st.markdown("### 🖼️ Land Cover Region")
     fig = plot_landcover(expected_tile_path(LANDCOVER_FOLDER, lat, lon, ".tif"), lat, lon)
@@ -368,6 +378,7 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
 
 
