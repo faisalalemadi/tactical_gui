@@ -33,32 +33,31 @@ if MAPBOX_TOKEN:
 else:
     st.warning("Mapbox token missing. Add MAPBOX_TOKEN in Streamlit → Settings → Secrets for the basemap to render.")
 
-
-    st.subheader("🔎 Map sanity check (Mapbox)")
     
-    test_df = pd.DataFrame([{"lat": 25.285447, "lon": 51.531040}])  # Doha
-    
-    
-    deck_test = pdk.Deck(
-        map_style="mapbox://styles/mapbox/satellite-v9",
-        initial_view_state=pdk.ViewState(latitude=test_df.lat[0], longitude=test_df.lon[0], zoom=12, pitch=45),
-        layers=[
-            pdk.Layer(
-                "ScatterplotLayer",
-                data=test_df,
-                get_position='[lon, lat]',
-                get_radius=100,
-                get_fill_color='[255, 0, 0, 180]',
-                pickable=True,
-            )
-        ],
-        tooltip={"text": "Doha test point"},
-    )
-    st.pydeck_chart(deck_test, use_container_width=True, height=400)
-    
-
 # Allow duplicate OpenMP DLL (Windows quirk)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+st.subheader("🔎 Map sanity check (Mapbox)")
+import pydeck as pdk, pandas as pd
+
+test_df = pd.DataFrame([{"lat": 25.285447, "lon": 51.531040}])  # Doha
+
+
+deck_test = pdk.Deck(
+    map_style="mapbox://styles/mapbox/satellite-v9",
+    initial_view_state=pdk.ViewState(latitude=test_df.lat[0], longitude=test_df.lon[0], zoom=12, pitch=45),
+    layers=[
+        pdk.Layer(
+            "ScatterplotLayer",
+            data=test_df,
+            get_position='[lon, lat]',
+            get_radius=100,
+            get_fill_color='[255, 0, 0, 180]',
+            pickable=True,
+        )
+    ],
+    tooltip={"text": "Doha test point"},
+)
+st.pydeck_chart(deck_test, use_container_width=True, height=400)
 
 # === Constants ===
 DEM_FOLDER = "./dem_tiles"
@@ -391,6 +390,7 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
 
 
 
