@@ -307,7 +307,7 @@ if st.button("Generate Recommendation", type="primary"):
 
     deck = pdk.Deck(
         map_style="mapbox://styles/mapbox/satellite-v9",   # fixed style
-        mapbox_key=MAPBOX_TOKEN,                            # explicit token
+                            
         initial_view_state=pdk.ViewState(
             latitude=float(lat), longitude=float(lon), zoom=12, pitch=45
         ),
@@ -365,3 +365,4 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
+
