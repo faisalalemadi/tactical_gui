@@ -18,7 +18,6 @@ import json
 st.set_page_config(page_title="🧠 Tactical Reasoning Assistant", page_icon="🛰️", layout="wide")
 st.title("🧠 Tactical Reasoning Assistant (Qatar Armed Forces)")
 
-
 # Session history for exports
 if "runs" not in st.session_state:
     st.session_state["runs"] = []
@@ -27,14 +26,12 @@ if "runs" not in st.session_state:
 DEFAULT_MODEL = "gpt-4o"  # change to gpt-4o, gpt-5, or gpt-5-reasoning as needed
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# Mapbox token for pydeck (public 'pk.' token)
+# Mapbox token for pydeck (must be a public 'pk.' token)
 MAPBOX_TOKEN = st.secrets.get("MAPBOX_TOKEN") or os.getenv("MAPBOX_TOKEN")
 if MAPBOX_TOKEN:
     pdk.settings.mapbox_api_key = MAPBOX_TOKEN
-    # show short masked token to confirm without leaking it
-    st.sidebar.info(f"Mapbox token loaded ✅ ({MAPBOX_TOKEN[:5]}…{MAPBOX_TOKEN[-4:]})")
 else:
-    st.sidebar.error("Mapbox token missing ❌  (add MAPBOX_TOKEN in Streamlit → Settings → Secrets)")
+    st.warning("Mapbox token missing. Add MAPBOX_TOKEN in Streamlit → Settings → Secrets for the basemap to render.")
 
 # Allow duplicate OpenMP DLL (Windows quirk)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -55,7 +52,6 @@ ESA_COLORS = {
     50: "#FA0000", 60: "#B4B4B4", 70: "#F0F0F0", 80: "#0032C8",
     90: "#0096A0", 95: "#00CF75", 100: "#FAE6A0"
 }
-# Sorted keys for consistent colormap + legend mapping
 ESA_KEYS = sorted(ESA_COLORS.keys())
 
 # Qatar-specific constraints
@@ -69,7 +65,6 @@ QATAR_BOMBING_TYPES = [
     "Maritime Strike",
 ]
 
-# Air-to-ground platforms
 QATAR_AIR_PLATFORMS = [
     "F-15QA",
     "Dassault Rafale",
@@ -78,19 +73,16 @@ QATAR_AIR_PLATFORMS = [
     "Bayraktar TB2",
 ]
 
-# Ground-to-ground platforms
 QATAR_GROUND_PLATFORMS = [
     "M142 HIMARS",
     "PzH 2000",
 ]
 
-# Air munitions
 QATAR_AIR_MUNITIONS = [
     "AASM Hammer", "SCALP-EG", "Paveway IV", "Brimstone 2",
     "JDAM", "SDB", "AGM-114R Hellfire", "APKWS", "MAM-L"
 ]
 
-# Ground munitions
 QATAR_GROUND_MUNITIONS = [
     "GMLRS",
     "ATACMS",
@@ -130,7 +122,6 @@ def get_tile_path(folder, lat, lon, extension):
     full_path = os.path.join(folder, filename)
     return full_path if os.path.exists(full_path) else None
 
-# Helper: expected path (for clearer error messages)
 def expected_tile_path(folder, lat, lon, extension):
     lat_prefix = 'N' if lat >= 0 else 'S'
     lon_prefix = 'E' if lon >= 0 else 'W'
@@ -157,7 +148,6 @@ def extract_features(lat, lon):
     dem_path = get_tile_path(DEM_FOLDER, lat, lon, ".hgt")
     lc_path = get_tile_path(LANDCOVER_FOLDER, lat, lon, ".tif")
 
-    # Robust missing-tiles error
     if not dem_path or not lc_path:
         exp_dem = expected_tile_path(DEM_FOLDER, lat, lon, ".hgt")
         exp_lc = expected_tile_path(LANDCOVER_FOLDER, lat, lon, ".tif")
@@ -172,12 +162,10 @@ def extract_features(lat, lon):
         dem_data = dem.read(1, window=window).astype("float64")
         dem_data = np.where(dem_data == dem.nodata, np.nan, dem_data)
 
-        # Slope using meters-per-pixel (not array cells)
         transform = dem.window_transform(window)
         xres_deg = transform.a
         yres_deg = abs(transform.e)
         center_lat = (miny + maxy) / 2.0
-        # meters per degree
         m_per_deg_lon = 111_320.0 * math.cos(math.radians(center_lat))
         m_per_deg_lat = 111_320.0
         xres_m = xres_deg * m_per_deg_lon
@@ -217,7 +205,6 @@ def plot_landcover(lc_path, lat, lon):
         data = np.where(data == src.nodata, np.nan, data)
         bounds = rasterio.windows.bounds(window, src.transform)
 
-    # Sorted keys for colormap + boundaries so legend matches
     cmap = mcolors.ListedColormap([ESA_COLORS[k] for k in ESA_KEYS])
     boundaries = ESA_KEYS + [ESA_KEYS[-1] + 10]
     norm = mcolors.BoundaryNorm(boundaries=boundaries, ncolors=len(ESA_KEYS))
@@ -242,7 +229,6 @@ def plot_landcover(lc_path, lat, lon):
 # === GPT Qatar Response ===
 def generate_qatar_response(features, tactical_description, model_name=DEFAULT_MODEL):
     query = f"{tactical_description}. Terrain is {features['terrain_class']}, elevation {features['elevation_m']}m, slope {features['slope_deg']}°."
-    # Guard vectorstore availability
     try:
         docs = vectorstore.similarity_search(query, k=3)
         context = "\n\n".join([d.page_content for d in docs]) if docs else ""
@@ -263,7 +249,6 @@ def generate_qatar_response(features, tactical_description, model_name=DEFAULT_M
 
     user_msg = f"Doctrine:\n{context}\n\nTerrain:\n{features}\n\nTactical Description:\n{tactical_description}"
 
-    # Robust GPT/JSON handling + deterministic temperature=0
     try:
         if model_name in ["gpt-4o", "gpt-4o-mini", "gpt-5", "gpt-5-reasoning"]:
             resp = client.chat.completions.create(
@@ -286,7 +271,6 @@ def generate_qatar_response(features, tactical_description, model_name=DEFAULT_M
     except Exception as e:
         raise RuntimeError(f"Model response error: {e}")
 
-    # Validation
     if data.get("delivery_platform") in QATAR_AIR_PLATFORMS:
         allowed_munitions = QATAR_AIR_MUNITIONS
     elif data.get("delivery_platform") in QATAR_GROUND_PLATFORMS:
@@ -306,9 +290,6 @@ lat = st.number_input("Latitude", format="%f", value=31.040000)
 lon = st.number_input("Longitude", format="%f", value=34.850000)
 tactical_description = st.text_area("Mission / Tactical Description", placeholder="e.g. Radar near civilian area")
 
-# ---------- Sidebar: map-style picker ----------
-map_style = "mapbox://styles/mapbox/satellite-streets-v12"
-
 # === Streamlit UI ===
 if st.button("Generate Recommendation", type="primary"):
     try:
@@ -320,13 +301,16 @@ if st.button("Generate Recommendation", type="primary"):
         st.error(f"Feature extraction failed: {e}")
         st.stop()
 
+    # --- Map ---
     st.markdown("### 🗺️ Location Map")
-        # build the dataframe the layer will use
     target_df = pd.DataFrame([{"lat": float(lat), "lon": float(lon)}])
+
     deck = pdk.Deck(
-        map_style="mapbox://styles/mapbox/satellite-v9",
-        mapbox_key=MAPBOX_TOKEN,   # <-- pass token here
-        initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=12, pitch=45),
+        map_style="mapbox://styles/mapbox/satellite-v9",   # fixed style
+        mapbox_key=MAPBOX_TOKEN,                            # explicit token
+        initial_view_state=pdk.ViewState(
+            latitude=float(lat), longitude=float(lon), zoom=12, pitch=45
+        ),
         layers=[
             pdk.Layer(
                 "ScatterplotLayer",
@@ -339,17 +323,18 @@ if st.button("Generate Recommendation", type="primary"):
         ],
         tooltip={"text": "Target Location"},
     )
-    
     st.pydeck_chart(deck, height=600, use_container_width=True)
-    
 
+    # --- Land cover ---
     st.markdown("### 🖼️ Land Cover Region")
     fig = plot_landcover(expected_tile_path(LANDCOVER_FOLDER, lat, lon, ".tif"), lat, lon)
     st.pyplot(fig)
 
+    # --- Feature JSON ---
     st.markdown("### 📍 Geospatial Features")
     st.json({k: v for k, v in features.items()})
 
+    # --- GPT recommendation ---
     st.markdown("### 🧠 GPT Tactical Recommendation")
     try:
         gpt_response = generate_qatar_response(features, tactical_description)
@@ -358,7 +343,7 @@ if st.button("Generate Recommendation", type="primary"):
         st.error(str(e))
         st.stop()
 
-    # === ⬇️ Export: only Session History ===
+    # --- Export session history ---
     record = {
         "time": datetime.now().isoformat(timespec="seconds"),
         "inputs": {
@@ -380,11 +365,3 @@ if st.button("Generate Recommendation", type="primary"):
             file_name="session_runs.json",
             mime="application/json",
         )
-
-
-
-
-
-
-
-
